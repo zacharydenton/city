@@ -5,18 +5,14 @@
   City = (function() {
     function City() {
       this.update = __bind(this.update, this);
-      var i, init, _i;
       this.canvas = document.createElement('canvas');
       this.colors = ['#005F6B', '#008C9E', '#00B4CC', '#00DFFC'];
       document.body.appendChild(this.canvas);
       this.ctx = this.canvas.getContext('2d');
       this.resizeCanvas();
       this.active = this.count = 0;
+      this.restarted = false;
       this.boids = {};
-      init = Math.random() * 360;
-      for (i = _i = 1; _i <= 4; i = ++_i) {
-        this.addBoid(new Boid(this, this.colors[0], this.width / 2, this.height / 2, (init + 90 * i) * Math.PI / 180));
-      }
       this.update();
     }
 
@@ -38,12 +34,23 @@
     };
 
     City.prototype.update = function() {
-      var boid, i, id, ids, skip, _i, _ref, _results;
+      var boid, i, id, ids, restart, skip, _i, _ref, _results,
+        _this = this;
       requestAnimationFrame(this.update);
       this.image = this.ctx.getImageData(0, 0, this.width, this.height);
       this.data = this.image.data;
       if (this.active === 0) {
-        this.addBoid(new Boid(this, this.colors[Math.floor(Math.random() * this.colors.length)], Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), Math.random() * 360 * Math.PI / 180));
+        restart = function() {
+          _this.restarted = false;
+          _this.ctx.clearRect(0, 0, _this.width, _this.height);
+          return _this.addBoid(new Boid(_this, _this.colors[Math.floor(Math.random() * _this.colors.length)], Math.floor(Math.random() * _this.width), Math.floor(Math.random() * _this.height), Math.random() * 360 * Math.PI / 180));
+        };
+        if (this.count === 0) {
+          restart();
+        } else if (!this.restarted) {
+          this.restarted = true;
+          setTimeout(restart, 5000);
+        }
       }
       skip = 0;
       ids = Object.keys(this.boids);

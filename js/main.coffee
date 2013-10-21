@@ -15,12 +15,8 @@ class City
     @resizeCanvas()
 
     @active = @count = 0
+    @restarted = false
     @boids = {}
-    init = Math.random() * 360
-    for i in [1..4]
-      @addBoid new Boid(this, @colors[0], @width / 2, @height / 2,
-        (init + 90 * i) * Math.PI / 180)
-
     @update()
 
   addBoid: (boid) ->
@@ -43,11 +39,19 @@ class City
     @data = @image.data
 
     if @active == 0
-      @addBoid new Boid(this,
-        @colors[Math.floor(Math.random() * @colors.length)]
-        Math.floor(Math.random() * @width),
-        Math.floor(Math.random() * @height),
-        Math.random() * 360 * Math.PI / 180)
+      restart = =>
+        @restarted = false
+        @ctx.clearRect 0, 0, @width, @height
+        @addBoid new Boid(this,
+          @colors[Math.floor(Math.random() * @colors.length)]
+          Math.floor(Math.random() * @width),
+          Math.floor(Math.random() * @height),
+          Math.random() * 360 * Math.PI / 180)
+      if @count == 0
+        restart()
+      else if not @restarted
+        @restarted = true
+        setTimeout restart, 5000
 
     skip = 0
     ids = Object.keys(@boids)
