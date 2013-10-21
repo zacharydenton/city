@@ -6,42 +6,61 @@
     function City() {
       this.update = __bind(this.update, this);
       var i, init, _i;
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
       this.canvas = document.createElement('canvas');
-      this.colors = ['#343838', '#005F6B', '#008C9E', '#00B4CC', '#00DFFC'];
+      this.colors = ['#005F6B', '#008C9E', '#00B4CC', '#00DFFC'];
       document.body.appendChild(this.canvas);
-      this.canvas.width = this.width;
-      this.canvas.height = this.height;
       this.ctx = this.canvas.getContext('2d');
-      this.ctx.fillStyle = this.colors[0];
-      this.ctx.fillRect(0, 0, this.width, this.height);
-      this.boids = [];
+      this.resizeCanvas();
+      this.active = this.count = 0;
+      this.boids = {};
       init = Math.random() * 360;
       for (i = _i = 1; _i <= 4; i = ++_i) {
-        this.boids.push(new Boid(this, this.colors[1], this.width / 2, this.height / 2, (init + 90 * i) * Math.PI / 180));
+        this.addBoid(new Boid(this, this.colors[0], this.width / 2, this.height / 2, (init + 90 * i) * Math.PI / 180));
       }
       this.update();
     }
 
+    City.prototype.addBoid = function(boid) {
+      this.boids[++this.count] = boid;
+      return this.active++;
+    };
+
+    City.prototype.removeBoid = function(id) {
+      delete this.boids[id];
+      return this.active--;
+    };
+
+    City.prototype.resizeCanvas = function() {
+      this.width = window.innerWidth;
+      this.height = window.innerHeight;
+      this.canvas.width = this.width;
+      return this.canvas.height = this.height;
+    };
+
     City.prototype.update = function() {
-      var boid, _i, _len, _ref, _results;
+      var boid, i, id, ids, skip, _i, _ref, _results;
       requestAnimationFrame(this.update);
       this.image = this.ctx.getImageData(0, 0, this.width, this.height);
       this.data = this.image.data;
-      if (this.boids.length === 0) {
-        this.boids.push(new Boid(this, this.colors[1 + Math.floor(Math.random() * (this.colors.length - 1))], Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), Math.random() * 360 * Math.PI / 180));
+      if (this.active === 0) {
+        this.addBoid(new Boid(this, this.colors[Math.floor(Math.random() * this.colors.length)], Math.floor(Math.random() * this.width), Math.floor(Math.random() * this.height), Math.random() * 360 * Math.PI / 180));
       }
-      _ref = this.boids;
+      skip = 0;
+      ids = Object.keys(this.boids);
       _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        boid = _ref[_i];
-        if (boid == null) {
+      for (i = _i = _ref = ids.length - 1; _ref <= 0 ? _i <= 0 : _i >= 0; i = _ref <= 0 ? ++_i : --_i) {
+        if (skip > 0) {
+          skip -= 1;
           continue;
         }
+        id = ids[i];
+        boid = this.boids[id];
         boid.update();
-        if (!boid.dead && Math.random() > 0.5 && this.boids.length < 200) {
-          _results.push(this.boids.push(new Boid(this, this.colors[1 + Math.floor(Math.random() * (this.colors.length - 1))], boid.x, boid.y, (Math.random() > 0.5 ? 90 : -90) * Math.PI / 180 + boid.angle)));
+        if (boid.dead) {
+          skip = 1;
+          _results.push(this.removeBoid(id));
+        } else if (Math.random() > 0.5 && this.active < 500) {
+          _results.push(this.addBoid(new Boid(this, this.colors[Math.floor(Math.random() * this.colors.length)], boid.x, boid.y, (Math.random() > 0.5 ? 90 : -90) * Math.PI / 180 + boid.angle)));
         } else {
           _results.push(void 0);
         }
@@ -75,7 +94,7 @@
     }
 
     Boid.prototype.update = function() {
-      var dir, index;
+      var dir, index, width;
       this.city.ctx.strokeStyle = this.color;
       this.city.ctx.beginPath();
       this.city.ctx.moveTo(this.x, this.y);
@@ -89,13 +108,14 @@
       this.life -= 2;
       this.city.ctx.lineTo(this.x, this.y);
       dir = (Math.random() > 0.5 ? Math.PI / 2 : -Math.PI / 2);
-      this.city.ctx.lineTo(this.x + Math.cos(this.angle + dir) * this.width * Math.random(), this.y + Math.sin(this.angle + dir) * this.width * Math.random());
+      width = 0.75 * this.width * (1 + 0.25 * Math.random());
+      this.city.ctx.lineTo(this.x + Math.cos(this.angle + dir) * width, this.y + Math.sin(this.angle + dir) * width);
       this.city.ctx.stroke();
       index = (Math.floor(this.x) + this.city.width * Math.floor(this.y)) * 4;
       if (this.life <= 0) {
         this.kill();
       }
-      if (this.city.data[index] !== 52) {
+      if (this.city.data[index + 3] > 0) {
         this.kill();
       }
       if (this.x < 0 || this.x > this.city.width) {
@@ -107,7 +127,6 @@
     };
 
     Boid.prototype.kill = function() {
-      this.city.boids.splice(this.city.boids.indexOf(this), 1);
       return this.dead = true;
     };
 
@@ -117,6 +136,10 @@
 
   window.onload = function() {
     return this.city = new City;
+  };
+
+  window.onresize = function() {
+    return this.city.resizeCanvas();
   };
 
 }).call(this);
