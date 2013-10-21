@@ -1,5 +1,10 @@
 # based on http://jsdo.it/mrdoob/xI3u
 
+(->
+  requestAnimationFrame = window.requestAnimationFrame or window.mozRequestAnimationFrame or window.webkitRequestAnimationFrame or window.msRequestAnimationFrame
+  window.requestAnimationFrame = requestAnimationFrame
+)()
+
 class City
   constructor: ->
     @canvas = document.createElement 'canvas'

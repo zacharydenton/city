@@ -2,6 +2,12 @@
   var Boid, City,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
+  (function() {
+    var requestAnimationFrame;
+    requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame || window.webkitRequestAnimationFrame || window.msRequestAnimationFrame;
+    return window.requestAnimationFrame = requestAnimationFrame;
+  })();
+
   City = (function() {
     function City() {
       this.update = __bind(this.update, this);
