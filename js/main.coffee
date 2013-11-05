@@ -19,6 +19,20 @@ class City
     @ctx = @canvas.getContext '2d'
     @resizeCanvas()
 
+    @audioContext = new (AudioContext ? webkitAudioContext)
+    @masterGain = @audioContext.createGain()
+    @masterGain.connect @audioContext.destination
+    @scissor = new Scissor(@audioContext)
+    @scissor.connect @masterGain
+    @scissor.detune = 1
+    @scissor.numSaws = 10
+    @notes = []
+    @maxNotes = 50
+    @minNote = 48
+    @masterGain.gain.value = (1 / @maxNotes)
+    @skip = 100
+    @currSkip = 0
+
     @active = @count = 0
     @restarted = false
     @boids = {}
@@ -40,6 +54,9 @@ class City
 
   update: =>
     requestAnimationFrame @update
+    @currSkip += 1
+    return if @currSkip < @skip
+    @currSkip = 0
     @image = @ctx.getImageData 0, 0, @width, @height
     @data = @image.data
 
@@ -70,7 +87,7 @@ class City
       if boid.dead
         skip = 1
         @removeBoid id
-      else if Math.random() > 0.5 and @active < 500
+      else if @active < @maxNotes
         @addBoid new Boid(this,
           @colors[Math.floor(Math.random() * @colors.length)]
           boid.x, boid.y,
@@ -79,17 +96,29 @@ class City
 
 class Boid
   constructor: (@city, @color, @x, @y, angle) ->
+    @playNote()
     @angle = Math.pow(Math.random(), 20) + angle
     @dx = Math.cos @angle
     @dy = Math.sin @angle
-    @life = Math.random() * 90 + 50
+    @life = Math.random() * 200 + 40
     @dead = false
     @width = 2 * Math.random()
     @dr = 0
     r = Math.random()
-    if r < 0.1
+    if r < 0.5
       @dr = (if Math.random() > 0.5 then r else -r) * 0.1
       @life += (@city.width / 2) * Math.random()
+
+  playNote: ->
+    if @city.notes.length > @city.maxNotes
+      @oldestNote = @city.notes.shift()
+      @city.scissor.noteOff @oldestNote
+
+    @note = @city.scissor.noteOn(109 + (Math.random() * 2))
+    @city.notes.push @note
+
+  stopNote: ->
+    @city.scissor.noteOff @note
 
   update: ->
     @city.ctx.strokeStyle = @color
@@ -100,9 +129,10 @@ class Boid
       @dx = Math.cos @angle
       @dy = Math.sin @angle
 
-    @x += @dx * 2
-    @y += @dy * 2
-    @life -= 2
+    step = 1.5
+    @x += @dx * step
+    @y += @dy * step
+    @life -= step
 
     @city.ctx.lineTo @x, @y
     dir = (if Math.random() > 0.5 then Math.PI/2 else -Math.PI/2)
@@ -123,6 +153,7 @@ class Boid
       @kill()
 
   kill: ->
+    @stopNote()
     @dead = true
 
 window.onload = ->

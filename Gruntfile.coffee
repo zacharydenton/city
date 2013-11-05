@@ -5,7 +5,7 @@ module.exports = (grunt) ->
     coffee:
       compile:
         files:
-          'js/main.js': 'js/main.coffee'
+          'js/main.js': 'js/*.coffee'
     less:
       compile:
         files:
