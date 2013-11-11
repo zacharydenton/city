@@ -8,27 +8,34 @@
     return window.requestAnimationFrame = requestAnimationFrame;
   })();
 
+  Array.prototype.choice = function() {
+    return this[Math.floor(Math.random() * this.length)];
+  };
+
   City = (function() {
     function City() {
       this.update = __bind(this.update, this);
       this.canvas = document.createElement('canvas');
-      this.colors = ['#005F6B', '#008C9E', '#00B4CC', '#00DFFC'];
+      this.schemes = [['#005F6B', '#008C9E', '#00B4CC', '#00DFFC'], ['#FFEAF2', '#FCD9E5', '#FBC5D8', '#F1396D'], ['#6DA67A', '#77B885', '#86C28B', '#859987'], ['#EBF7F8', '#D0E0EB', '#88ABC2', '#49708A'], ['#680E34', '#9A151A', '#C21B12', '#FC4B2A'], ['#1B676B', '#519548', '#88C425', '#BEF202', '#EAFDE6'], ['#6DA67A', '#99A66D', '#A9BD68', '#B5CC6A', '#C0DE5D'], ['#A6F6AF', '#66B6AB', '#5B7C8D', '#4F2958', '#FFFBB7'], ['#111625', '#341931', '#571B3C', '#7A1E48', '#9D2053'], ['#FFFF00', '#CCD91A', '#99B333', '#668C4D', '#336666'], ['#213435', '#46685B', '#648A64', '#A6B985', '#E1E3AC'], ['#001449', '#012677', '#005BC5', '#00B4FC', '#17F9FF'], ['#8D7966', '#A8A39D', '#D8C8B8', '#E2DDD9', '#F8F1E9'], ['#595B5A', '#14C3A2', '#0DE5A8', '#7CF49A', '#B8FD99'], ['#002E34', '#004443', '#00755C', '#00C16C', '#90FF17'], ['#FC580C', '#FC6B0A', '#F8872E', '#FFA927', '#FDCA49']];
       document.body.appendChild(this.canvas);
       this.ctx = this.canvas.getContext('2d');
       this.resizeCanvas();
       this.audioContext = new (typeof AudioContext !== "undefined" && AudioContext !== null ? AudioContext : webkitAudioContext);
       this.masterGain = this.audioContext.createGain();
       this.masterGain.connect(this.audioContext.destination);
+      this.masterGain.gain.value = 0.7;
       this.scissor = new Scissor(this.audioContext);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 128;
+      this.analysis = new Uint8Array(this.analyser.fftSize);
+      this.scissor.connect(this.analyser);
       this.scissor.connect(this.masterGain);
-      this.scissor.detune = 1;
-      this.scissor.numSaws = 10;
-      this.notes = [];
-      this.maxNotes = 50;
-      this.minNote = 48;
-      this.masterGain.gain.value = 1 / this.maxNotes;
-      this.skip = 100;
+      this.scissor.numSaws = 90;
+      this.scissor.spread = 1.618 / 4;
+      this.scissor.noteOn(110);
+      this.skip = 8;
       this.currSkip = 0;
+      this.maxActive = 10000;
       this.active = this.count = 0;
       this.restarted = false;
       this.boids = {};
@@ -53,7 +60,7 @@
     };
 
     City.prototype.update = function() {
-      var boid, i, id, ids, restart, skip, _i, _ref, _results,
+      var boid, i, id, ids, max, maxActive, restart, sample, skip, waveform, _i, _ref, _results,
         _this = this;
       requestAnimationFrame(this.update);
       this.currSkip += 1;
@@ -63,11 +70,31 @@
       this.currSkip = 0;
       this.image = this.ctx.getImageData(0, 0, this.width, this.height);
       this.data = this.image.data;
+      this.analyser.getByteTimeDomainData(this.analysis);
+      waveform = (function() {
+        var _i, _ref, _results;
+        _results = [];
+        for (i = _i = 0, _ref = this.analysis.length; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
+          _results.push((128 - this.analysis[i]) / 128);
+        }
+        return _results;
+      }).call(this);
+      max = Math.max.apply(null, (function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = waveform.length; _i < _len; _i++) {
+          sample = waveform[_i];
+          _results.push(Math.abs(sample));
+        }
+        return _results;
+      })());
+      maxActive = this.maxActive * max;
       if (this.active === 0) {
         restart = function() {
+          _this.colors = _this.schemes.choice();
           _this.restarted = false;
           _this.ctx.clearRect(0, 0, _this.width, _this.height);
-          return _this.addBoid(new Boid(_this, _this.colors[Math.floor(Math.random() * _this.colors.length)], Math.floor(Math.random() * _this.width), Math.floor(Math.random() * _this.height), Math.random() * 360 * Math.PI / 180));
+          return _this.addBoid(new Boid(_this, _this.colors.choice(), Math.floor(Math.random() * _this.width), Math.floor(Math.random() * _this.height), Math.random() * 360 * Math.PI / 180));
         };
         if (this.count === 0) {
           restart();
@@ -86,12 +113,15 @@
         }
         id = ids[i];
         boid = this.boids[id];
+        if (boid == null) {
+          continue;
+        }
         boid.update();
         if (boid.dead) {
           skip = 1;
           _results.push(this.removeBoid(id));
-        } else if (this.active < this.maxNotes) {
-          _results.push(this.addBoid(new Boid(this, this.colors[Math.floor(Math.random() * this.colors.length)], boid.x, boid.y, (Math.random() > 0.5 ? 90 : -90) * Math.PI / 180 + boid.angle)));
+        } else if (this.active < maxActive) {
+          _results.push(this.addBoid(new Boid(this, this.colors.choice(), boid.x, boid.y, (Math.random() > 0.5 ? 90 : -90) * Math.PI / 180 + boid.angle)));
         } else {
           _results.push(void 0);
         }
@@ -110,33 +140,19 @@
       this.color = color;
       this.x = x;
       this.y = y;
-      this.playNote();
       this.angle = Math.pow(Math.random(), 20) + angle;
       this.dx = Math.cos(this.angle);
       this.dy = Math.sin(this.angle);
-      this.life = Math.random() * 200 + 40;
+      this.life = Math.random() * 100 + 40;
       this.dead = false;
       this.width = 2 * Math.random();
       this.dr = 0;
       r = Math.random();
-      if (r < 0.5) {
+      if (r < 0.2) {
         this.dr = (Math.random() > 0.5 ? r : -r) * 0.1;
         this.life += (this.city.width / 2) * Math.random();
       }
     }
-
-    Boid.prototype.playNote = function() {
-      if (this.city.notes.length > this.city.maxNotes) {
-        this.oldestNote = this.city.notes.shift();
-        this.city.scissor.noteOff(this.oldestNote);
-      }
-      this.note = this.city.scissor.noteOn(109 + (Math.random() * 2));
-      return this.city.notes.push(this.note);
-    };
-
-    Boid.prototype.stopNote = function() {
-      return this.city.scissor.noteOff(this.note);
-    };
 
     Boid.prototype.update = function() {
       var dir, index, step, width;
@@ -173,7 +189,6 @@
     };
 
     Boid.prototype.kill = function() {
-      this.stopNote();
       return this.dead = true;
     };
 
@@ -198,8 +213,8 @@
     function Scissor(context) {
       this.context = context;
       this.output = this.context.createGain();
-      this.numSaws = 3;
-      this.detune = 12;
+      this.numSaws = 9;
+      this.spread = 1;
     }
 
     Scissor.prototype.noteOn = function(freq, time) {
@@ -207,7 +222,7 @@
       if (time == null) {
         time = this.context.currentTime;
       }
-      voice = new ScissorVoice(this.context, freq, this.numSaws, this.detune);
+      voice = new ScissorVoice(this.context, freq, this.numSaws, this.spread);
       voice.connect(this.output);
       voice.start(time);
       return voice;
@@ -229,20 +244,19 @@
   })();
 
   ScissorVoice = (function() {
-    function ScissorVoice(context, frequency, numSaws, detune) {
+    function ScissorVoice(context, frequency, numSaws, spread) {
       var i, saw, _i, _ref;
       this.context = context;
       this.frequency = frequency;
       this.numSaws = numSaws;
-      this.detune = detune;
+      this.spread = spread;
       this.output = this.context.createGain();
       this.maxGain = 1 / this.numSaws;
       this.saws = [];
       for (i = _i = 0, _ref = this.numSaws; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
         saw = this.context.createOscillator();
         saw.type = saw.SAWTOOTH;
-        saw.frequency.value = this.frequency;
-        saw.detune.value = -this.detune + i * 2 * this.detune / (this.numSaws - 1);
+        saw.frequency.value = this.frequency - this.spread + (i * 2 * this.spread / (this.numSaws - 1));
         saw.start(this.context.currentTime);
         saw.connect(this.output);
         this.saws.push(saw);

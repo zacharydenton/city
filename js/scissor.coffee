@@ -1,13 +1,12 @@
 class @Scissor
   constructor: (@context) ->
     @output = @context.createGain()
-
-    @numSaws = 3
-    @detune = 12
+    @numSaws = 9
+    @spread = 1
 
   noteOn: (freq, time) ->
     time ?= @context.currentTime
-    voice = new ScissorVoice(@context, freq, @numSaws, @detune)
+    voice = new ScissorVoice(@context, freq, @numSaws, @spread)
     voice.connect @output
     voice.start time
     return voice
@@ -20,15 +19,14 @@ class @Scissor
     @output.connect target
 
 class ScissorVoice
-  constructor: (@context, @frequency, @numSaws, @detune) ->
+  constructor: (@context, @frequency, @numSaws, @spread) ->
     @output = @context.createGain()
     @maxGain = 1 / @numSaws
     @saws = []
     for i in [0...@numSaws]
       saw = @context.createOscillator()
       saw.type = saw.SAWTOOTH
-      saw.frequency.value = @frequency
-      saw.detune.value = -@detune + i * 2 * @detune / (@numSaws - 1)
+      saw.frequency.value = @frequency - @spread + (i * 2 * @spread / (@numSaws - 1))
       saw.start @context.currentTime
       saw.connect @output
       @saws.push saw
