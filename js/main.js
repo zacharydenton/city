@@ -255,7 +255,7 @@
       this.saws = [];
       for (i = _i = 0, _ref = this.numSaws; 0 <= _ref ? _i < _ref : _i > _ref; i = 0 <= _ref ? ++_i : --_i) {
         saw = this.context.createOscillator();
-        saw.type = saw.SAWTOOTH;
+        saw.type = "sawtooth";
         saw.frequency.value = this.frequency - this.spread + (i * 2 * this.spread / (this.numSaws - 1));
         saw.start(this.context.currentTime);
         saw.connect(this.output);

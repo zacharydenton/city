@@ -25,7 +25,7 @@ class ScissorVoice
     @saws = []
     for i in [0...@numSaws]
       saw = @context.createOscillator()
-      saw.type = saw.SAWTOOTH
+      saw.type = "sawtooth"
       saw.frequency.value = @frequency - @spread + (i * 2 * @spread / (@numSaws - 1))
       saw.start @context.currentTime
       saw.connect @output
